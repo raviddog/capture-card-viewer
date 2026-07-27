@@ -1,0 +1,10 @@
+.qtc_clangd
+.qtcreator
+.qmake.stash
+
+build
+debug
+lib/obs.lib
+release
+
+Makefile*
