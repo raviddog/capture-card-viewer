@@ -5,6 +5,7 @@
 build
 debug
 lib/obs.lib
+include
 release
 
 Makefile*
