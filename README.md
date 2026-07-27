@@ -1,5 +1,6 @@
 # capture-card-viewer
-Simple program to view a capture card video feed
+Simple program to view a capture card video feed.
+I made it because I was too lazy to open OBS and then open the windowed projector.
 
 ## To use
 - Double click: toggle fullscreen
