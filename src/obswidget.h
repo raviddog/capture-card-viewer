@@ -50,7 +50,7 @@ private:
     obs_scene_t *_scene = nullptr;
     obs_source_t *_videoSource = nullptr;
     obs_source_t *_audioSource = nullptr;
-    obs_sceneitem_t *_sceneItem = nullptr;
+    obs_sceneitem_t *_videoSceneItem = nullptr;
 
     QString _currentVideoSource;
     QString _currentAudioSource;

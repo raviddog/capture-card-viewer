@@ -71,8 +71,8 @@ void ObsWidget::initialize(int w, int h)
     obs_set_output_source(0, _videoSource);
     obs_set_output_source(0, _audioSource);
     _scene = obs_scene_create("MainScene");
-    _sceneItem = obs_scene_add(_scene, _videoSource);
-    _sceneItem = obs_scene_add(_scene, _audioSource);
+    _videoSceneItem = obs_scene_add(_scene, _videoSource);
+    obs_scene_add(_scene, _audioSource);
 
     setSourceTransformFit();
 
@@ -189,7 +189,8 @@ void ObsWidget::setSourceTransformFit()
     itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
     itemInfo.crop_to_bounds = false;
 
-    obs_sceneitem_set_info2(_sceneItem, &itemInfo);
+    obs_sceneitem_set_info2(_videoSceneItem, &itemInfo);
+
 }
 
 void ObsWidget::setPreviewEnabled(bool enabled)
@@ -273,6 +274,7 @@ void ObsWidget::setCaptureDevice(QString deviceName)
         emit updateCurrentDevices(_currentVideoSource, "Video Capture device");
     }
 
+    setSourceTransformFit();
     writeSettings();
 }
 
