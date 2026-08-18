@@ -18,7 +18,9 @@ MainWindow::MainWindow(QWidget *parent)
     _obsWidget->move(0, 0);
 
     _capturePicker = new CaptureDevicePicker;
-    connect(_capturePicker, &CaptureDevicePicker::selectDevice, _obsWidget, &ObsWidget::setCaptureDevice);
+    connect(_capturePicker, &CaptureDevicePicker::selectVideoDevice, _obsWidget, &ObsWidget::setCaptureDevice);
+    connect(_capturePicker, &CaptureDevicePicker::selectAudioDevice, _obsWidget, &ObsWidget::setCaptureAudio);
+    connect(_obsWidget, &ObsWidget::updateCurrentDevices, _capturePicker, &CaptureDevicePicker::setCurrentDevices);
     _capturePicker->setParent(centralWidget());
     _capturePicker->resize(400, 200);
     _capturePicker->move(0, 48);
@@ -84,7 +86,7 @@ void MainWindow::sidebarToggled(bool currentlyShown)
     if(ui->togglePickerWindow->isChecked())
     {
         _capturePicker->setHidden(false);
-        _capturePicker->loadDeviceList(_obsWidget->getCaptureDeviceList());
+        _capturePicker->loadDeviceList(_obsWidget->getVideoDeviceList(), _obsWidget->getAudioDeviceList());
     } else {
         _capturePicker->setHidden(true);
     }

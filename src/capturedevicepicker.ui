@@ -30,7 +30,52 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QListWidget" name="deviceList"/>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tab">
+      <attribute name="title">
+       <string>Video</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QListWidget" name="videoDeviceList"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblCurVideoDevice">
+         <property name="text">
+          <string>Current Device:</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_2">
+      <attribute name="title">
+       <string>Audio</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <item>
+        <widget class="QCheckBox" name="cbUseCaptureDeviceAudio">
+         <property name="text">
+          <string>Use Capture Device Audio</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="audioDeviceList"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblCurAudioDevice">
+         <property name="text">
+          <string>Current Device:</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
    </item>
   </layout>
  </widget>

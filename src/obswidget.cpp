@@ -51,33 +51,78 @@ void ObsWidget::initialize(int w, int h)
     //  display add callback
     obs_display_add_draw_callback(_display, renderCallback, this);
 
-    // //  Create device capture source
+    // Create video capture source
     obs_data_t *settings = obs_data_create();
-    _source = obs_source_create("dshow_input", "Capture Card", settings, nullptr);
-    obs_source_set_monitoring_type(_source, OBS_MONITORING_TYPE_MONITOR_ONLY);
+    _videoSource = obs_source_create("dshow_input", "Capture Card", settings, nullptr);
+    obs_data_set_bool(settings, "capture_audio", true);
+    obs_source_set_monitoring_type(_videoSource, OBS_MONITORING_TYPE_MONITOR_ONLY);
+    obs_source_set_volume(_videoSource, 1.f);
+    obs_source_set_muted(_videoSource, true);
     obs_data_release(settings);
 
-    obs_set_output_source(0, _source);
+    //  Create audio capture source
+    settings = obs_data_create();
+    _audioSource = obs_source_create("wasapi_input_capture", "Line In", settings, nullptr);
+    obs_source_set_monitoring_type(_audioSource, OBS_MONITORING_TYPE_MONITOR_ONLY);
+    obs_source_set_muted(_audioSource, true);
+    obs_source_set_muted(_audioSource, true);
+    obs_data_release(settings);
+
+    obs_set_output_source(0, _videoSource);
+    obs_set_output_source(0, _audioSource);
     _scene = obs_scene_create("MainScene");
-    _sceneItem = obs_scene_add(_scene, _source);
+    _sceneItem = obs_scene_add(_scene, _videoSource);
+    _sceneItem = obs_scene_add(_scene, _audioSource);
 
     setSourceTransformFit();
 
     // setupOutput();
 
-    _settingCache.setFileName("lastDevice.ini");
+    _settingCache.setFileName("lastDevice.dat");
+    loadSettings();
+}
+
+void ObsWidget::loadSettings()
+{
     if(_settingCache.open(QIODevice::ReadOnly)) {
-        QTextStream in(&_settingCache);
-        QString device;
-        if(in.readLineInto(&device)) {
-            setCaptureDevice(device);
-        }
+        QDataStream in(&_settingCache);
+
+        QMap<QString, QString> data;
+        in >> data;
+
+        QString videoDevice = data.value("videoDevice");
+        QChar useCaptureDeviceAudio = data.value("useCaptureDeviceAudio").front();
+        QString audioDevice = data.value("audioDevice");
+        QString audioDeviceId = data.value("audioDeviceId");
+
+        setCaptureDevice(videoDevice);
+        setCaptureAudio(useCaptureDeviceAudio == 'Y', QPair<QString, QString>(audioDevice, audioDeviceId));
+
+        _settingCache.close();
+    }
+}
+
+void ObsWidget::writeSettings()
+{
+    if(_settingCache.open(QIODevice::WriteOnly)) {
+        QDataStream out(&_settingCache);
+        QMap<QString, QString> data;
+
+        data.insert("videoDevice", _currentVideoSource);
+        data.insert("useCaptureDeviceAudio", _useVideoDeviceAudio ? "Y" : "N");
+        data.insert("audioDevice", _currentAudioSource);
+        data.insert("audioDeviceId", _currentAudioSourceId);
+
+        out << data;
         _settingCache.close();
     }
 }
 
 void ObsWidget::renderCallback(void *param, uint32_t cx, uint32_t cy)
 {
+    Q_UNUSED(cx)
+    Q_UNUSED(cy)
+
     ObsWidget *self = static_cast<ObsWidget*>(param);
     if(!self)
         return;
@@ -161,7 +206,7 @@ QStringList ObsWidget::getWindowList()
 {
     QStringList windowList;
 
-    obs_properties_t *properties = obs_source_properties(_source);
+    obs_properties_t *properties = obs_source_properties(_videoSource);
     obs_property_t *prop_window = obs_properties_get(properties, "window");
 
     size_t count = obs_property_list_item_count(prop_window);
@@ -174,28 +219,44 @@ QStringList ObsWidget::getWindowList()
     return windowList;
 }
 
-QStringList ObsWidget::getCaptureDeviceList()
+QStringList ObsWidget::getVideoDeviceList()
 {
-    QStringList captureDevices;
-    obs_properties_t *properties = obs_source_properties(_source);
+    QStringList videoDevices;
+    obs_properties_t *properties = obs_source_properties(_videoSource);
     obs_property_t *prop_device = obs_properties_get(properties, "video_device_id");
 
     size_t count = obs_property_list_item_count(prop_device);
     for(size_t i = 0; i < count; i++) {
         QString deviceName = QString::fromUtf8(obs_property_list_item_string(prop_device, i));
-        captureDevices.append(deviceName);
+        videoDevices.append(deviceName);
     }
-    return captureDevices;
+    return videoDevices;
+}
+
+QList<QPair<QString, QString>> ObsWidget::getAudioDeviceList()
+{
+    QList<QPair<QString, QString>> audioDevices;
+    obs_properties_t *properties = obs_source_properties(_audioSource);
+    obs_property_t *prop_device = obs_properties_get(properties, "device_id");
+
+    size_t count = obs_property_list_item_count(prop_device);
+    for(size_t i = 0; i < count; i++) {
+        QString deviceName = QString::fromUtf8(obs_property_list_item_name(prop_device, i));
+        QString deviceId = QString::fromUtf8(obs_property_list_item_string(prop_device, i));
+        audioDevices.append(QPair<QString, QString>(deviceName, deviceId));
+    }
+    return audioDevices;
 }
 
 void ObsWidget::setCaptureDevice(QString deviceName)
-{
+{    
     if(deviceName.isEmpty())
         return;
 
+    _currentVideoSource = deviceName;
     QByteArray winId = deviceName.toUtf8();
 
-    obs_data_t *settings = obs_source_get_settings(_source);
+    obs_data_t *settings = obs_source_get_settings(_videoSource);
     obs_data_set_string(settings, "video_device_id", winId.constData());
     obs_data_set_int(settings, "buffering", 2);
     obs_data_set_int(settings, "res_type", 0);
@@ -203,14 +264,16 @@ void ObsWidget::setCaptureDevice(QString deviceName)
     obs_data_set_string(settings, "color_space", "default");
     obs_data_set_string(settings, "color_range", "default");
     obs_data_set_int(settings, "audio_output_mode", 0);
-    obs_source_update(_source, settings);
+    obs_source_update(_videoSource, settings);
     obs_data_release(settings);
 
-    if(_settingCache.open(QIODevice::WriteOnly)) {
-        QTextStream out(&_settingCache);
-        out << deviceName;
-        _settingCache.close();
+    if(obs_source_muted(_videoSource)) {
+        emit updateCurrentDevices(_currentVideoSource, _currentAudioSource);
+    } else {
+        emit updateCurrentDevices(_currentVideoSource, "Video Capture device");
     }
+
+    writeSettings();
 }
 
 void ObsWidget::setCaptureWindow(QString windowName)
@@ -218,21 +281,40 @@ void ObsWidget::setCaptureWindow(QString windowName)
     if(windowName.isEmpty())
         return;
     QByteArray winId = windowName.toUtf8();
-    obs_data_t *settings = obs_source_get_settings(_source);
+    obs_data_t *settings = obs_source_get_settings(_videoSource);
     obs_data_set_string(settings, "window", winId.constData());
-    obs_source_update(_source, settings);
+    obs_source_update(_videoSource, settings);
     obs_data_release(settings);
 
     if(!_isOutput)
         startStreaming();
 }
 
-void ObsWidget::setCaptureAudio(bool isCapture)
+void ObsWidget::setCaptureAudio(bool useVideoDevice, QPair<QString, QString> device)
 {
-    obs_data_t *settings = obs_source_get_settings(_source);
-    obs_data_set_bool(settings, "capture_audio", isCapture);
-    obs_source_update(_source, settings);
-    obs_data_release(settings);
+    _useVideoDeviceAudio = useVideoDevice;
+    if(!device.first.isEmpty())
+    {
+        _currentAudioSource = device.first;
+        _currentAudioSourceId = device.second;
+        QByteArray deviceId = device.second.toUtf8();
+        obs_data_t *settings = obs_source_get_settings(_audioSource);
+        obs_data_set_string(settings, "device_id", deviceId.constData());
+        obs_source_update(_audioSource, settings);
+        obs_data_release(settings);
+    }
+
+    if(useVideoDevice) {
+        obs_source_set_muted(_videoSource, false);
+        obs_source_set_muted(_audioSource, true);
+        emit updateCurrentDevices(_currentVideoSource, "Video Capture device");
+    } else {
+        obs_source_set_muted(_videoSource, true);
+        obs_source_set_muted(_audioSource, false);
+        emit updateCurrentDevices(_currentVideoSource, _currentAudioSource);
+    }
+
+    writeSettings();
 }
 
 void ObsWidget::setupOutput()

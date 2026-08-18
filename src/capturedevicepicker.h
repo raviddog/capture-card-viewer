@@ -16,13 +16,19 @@ public:
     explicit CaptureDevicePicker(QWidget *parent = nullptr);
     ~CaptureDevicePicker();
 
-    void loadDeviceList(QStringList devices);
+    void loadDeviceList(QStringList videoDevices, QList<QPair<QString, QString>> audioDevices);
 
 signals:
-    void selectDevice(const QString &deviceId);
+    void selectVideoDevice(const QString &deviceId);
+    void selectAudioDevice(const bool useVideoDevice, const QPair<QString, QString> &device);
+
+public slots:
+    void setCurrentDevices(QString videoDevice, QString audioDevice);
 
 private slots:
-    void deviceClicked(QListWidgetItem *item);
+    void videoDeviceClicked(QListWidgetItem *item);
+    void audioDeviceClicked(QListWidgetItem *item);
+    void useCaptureDeviceAudioToggled(bool toggled);
 
 private:
     Ui::CaptureDevicePicker *ui;
